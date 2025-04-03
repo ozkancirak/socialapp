@@ -107,6 +107,29 @@ export function PostCard({
     }
   }, [inView]);
   
+  // Video sona geldiğinde tekrar başlat (loop yerine)
+  const handleVideoEnded = () => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = 0;
+      videoRef.current.play().catch(e => 
+        console.log("Video tekrar başlatılamadı:", e)
+      );
+    }
+  };
+  
+  // Video tıklandığında oynat/duraklat
+  const handleVideoClick = () => {
+    if (videoRef.current) {
+      if (videoRef.current.paused) {
+        videoRef.current.play().catch(e => 
+          console.log("Video oynatılamadı:", e)
+        );
+      } else {
+        videoRef.current.pause();
+      }
+    }
+  };
+  
   // Video yüklendiğinde en-boy oranını kontrol edelim
   const handleVideoLoad = (event: React.SyntheticEvent<HTMLVideoElement>) => {
     const video = event.currentTarget;
@@ -805,18 +828,19 @@ export function PostCard({
                 {image_url.includes('.mp4') || image_url.includes('/video/') ? (
                   <div 
                     ref={videoWrapperRef} 
-                    className="aspect-video w-full max-w-full max-h-[480px] mx-auto rounded-md overflow-hidden"
+                    className="aspect-video w-full max-w-full max-h-[480px] mx-auto rounded-md overflow-hidden relative group cursor-pointer"
+                    onClick={handleVideoClick}
                   >
                     <video 
                       ref={videoRef}
                       src={image_url}
-                      controls
                       preload="metadata"
                       onLoadedMetadata={handleVideoLoad}
+                      onEnded={handleVideoEnded}
                       className="w-full h-full object-contain"
                       playsInline
-                      loop
                       autoPlay
+                      muted
                     />
                   </div>
                 ) : (

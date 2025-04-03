@@ -53,6 +53,29 @@ export default function PostPage() {
     }
   }, [inView]);
   
+  // Video sona geldiğinde tekrar başlat (loop yerine)
+  const handleVideoEnded = () => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = 0;
+      videoRef.current.play().catch(e => 
+        console.log("Video tekrar başlatılamadı:", e)
+      );
+    }
+  };
+  
+  // Video tıklandığında oynat/duraklat
+  const handleVideoClick = () => {
+    if (videoRef.current) {
+      if (videoRef.current.paused) {
+        videoRef.current.play().catch(e => 
+          console.log("Video oynatılamadı:", e)
+        );
+      } else {
+        videoRef.current.pause();
+      }
+    }
+  };
+  
   // Fetch post and comments
   useEffect(() => {
     const fetchPostAndComments = async () => {
@@ -322,18 +345,19 @@ export default function PostPage() {
                         {post.image_url.includes('.mp4') || post.image_url.includes('/video/') ? (
                           <div 
                             ref={videoWrapperRef} 
-                            className="aspect-video w-full max-w-full max-h-[600px] mx-auto rounded-md overflow-hidden"
+                            className="aspect-video w-full max-w-full max-h-[600px] mx-auto rounded-md overflow-hidden relative group cursor-pointer"
+                            onClick={handleVideoClick}
                           >
                             <video 
                               ref={videoRef}
                               src={post.image_url}
-                              controls
                               preload="metadata"
                               onLoadedMetadata={handleVideoLoad}
+                              onEnded={handleVideoEnded}
                               className="w-full h-full object-contain"
                               playsInline
-                              loop
                               autoPlay
+                              muted
                             />
                           </div>
                         ) : (
