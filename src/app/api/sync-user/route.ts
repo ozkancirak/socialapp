@@ -78,9 +78,9 @@ export async function GET(request: NextRequest) {
           }, { status: 500 });
         }
         
-        // Format the clerk ID for DB storage (remove 'user_' prefix if needed)
-        const formattedClerkId = userId.startsWith('user_') ? userId.substring(5) : userId;
-        console.log("Formatted Clerk ID:", formattedClerkId);
+        // Clerk ID'sini olduğu gibi kullan, prefix'i kaldırma
+        const clerkId = userId;
+        console.log("Clerk ID:", clerkId);
         
         // Build user data with proper name information
         let fullName = '';
@@ -89,11 +89,15 @@ export async function GET(request: NextRequest) {
         let avatarUrl = null;
         
         try {
-          // Kullanıcının isim ve soyismini Clerk'ten alıyoruz
+          // Kullanıcının isim ve soyismini Clerk'ten alalım
           fullName = `${userProfile.firstName || ''} ${userProfile.lastName || ''}`.trim();
           
-          // Kullanıcı adını tam ad olarak kullanıyoruz, yoksa Clerk username, yoksa user ID
-          displayName = fullName || userProfile.username || `user_${formattedClerkId.substring(0, 6)}`;
+          // Kullanıcı adı önceliği: 
+          // 1. Tam adı (firstName + lastName)
+          // 2. Clerk kullanıcı adı (username)
+          // 3. Clerk ID (user_id)
+          // Bu sırayla kontrol edip ilk null olmayanı kullanalım
+          displayName = fullName || userProfile.username || userId;
           
           if (userProfile.emailAddresses && userProfile.emailAddresses.length > 0) {
             email = userProfile.emailAddresses[0].emailAddress || '';
@@ -109,7 +113,7 @@ export async function GET(request: NextRequest) {
         } catch (dataError) {
           console.error("Error extracting user data from Clerk profile:", dataError);
           console.log("Using fallback values");
-          displayName = `user_${formattedClerkId.substring(0, 6)}`;
+          displayName = userId; // Fallback olarak User ID kullan
         }
         
         // IMPORTANT: Check the actual structure of the users table
@@ -134,7 +138,7 @@ export async function GET(request: NextRequest) {
           const { data: existingUser, error: findError } = await supabase
             .from('users')
             .select('id, username')
-            .eq('clerk_id', formattedClerkId)
+            .eq('clerk_id', clerkId)
             .maybeSingle();
           
           if (findError) {
@@ -158,7 +162,7 @@ export async function GET(request: NextRequest) {
                   avatar_url: avatarUrl,
                   updated_at: new Date().toISOString()
                 })
-                .eq('clerk_id', formattedClerkId)
+                .eq('clerk_id', clerkId)
                 .select();
                 
               if (updateError) {
@@ -191,8 +195,7 @@ export async function GET(request: NextRequest) {
           try {
             // Try with all fields first
             const userData = {
-              id: formattedClerkId, // This might fail if id is UUID
-              clerk_id: formattedClerkId,
+              clerk_id: clerkId,
               username: displayName,
               full_name: fullName,
               email: email,
@@ -215,7 +218,7 @@ export async function GET(request: NextRequest) {
                 console.log("ID field error detected, trying without ID");
                 // Try without ID field
                 const simplifiedUserData = {
-                  clerk_id: formattedClerkId,
+                  clerk_id: clerkId,
                   username: displayName,
                   full_name: fullName,
                   email: email,

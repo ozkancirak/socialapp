@@ -22,10 +22,11 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const headerPayload = headers();
-  const svix_id = headerPayload.get("svix-id");
-  const svix_timestamp = headerPayload.get("svix-timestamp");
-  const svix_signature = headerPayload.get("svix-signature");
+  // Headers returns a Promise in this version of Next.js
+  const headersList = await headers();
+  const svix_id = headersList.get("svix-id");
+  const svix_timestamp = headersList.get("svix-timestamp");
+  const svix_signature = headersList.get("svix-signature");
 
   // If there are no headers, error out
   if (!svix_id || !svix_timestamp || !svix_signature) {
@@ -132,7 +133,7 @@ export async function POST(req: NextRequest) {
       
       // Remove undefined properties to avoid overwriting with null
       Object.keys(userData).forEach(key => 
-        userData[key] === undefined && delete userData[key]
+        userData[key as keyof typeof userData] === undefined && delete userData[key as keyof typeof userData]
       );
       
       try {
