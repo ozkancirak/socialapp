@@ -805,7 +805,7 @@ export function PostCard({
                 {image_url.includes('.mp4') || image_url.includes('/video/') ? (
                   <div 
                     ref={videoWrapperRef} 
-                    className={`flex justify-center ${isVideoPortrait ? 'max-w-[70%] mx-auto' : 'w-full'}`}
+                    className={`${isVideoPortrait ? 'w-full' : 'w-full'}`}
                   >
                     <video 
                       ref={videoRef}
@@ -813,10 +813,10 @@ export function PostCard({
                       controls
                       preload="metadata"
                       onLoadedMetadata={handleVideoLoad}
-                      className={`${isVideoPortrait ? 'h-auto max-h-[500px] w-auto' : 'w-full h-auto max-h-96'} object-contain`}
+                      className={`${isVideoPortrait ? 'w-full' : 'w-full'} object-cover`}
                       playsInline
-                      muted
                       loop
+                      autoPlay
                     />
                   </div>
                 ) : (

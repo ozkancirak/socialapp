@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import { Sidebar } from "./sidebar";
 import { ThemeToggle } from "./theme-toggle";
 import { UserButton, SignedIn, SignedOut } from "@clerk/nextjs";
@@ -12,6 +12,27 @@ type PageLayoutProps = {
 };
 
 export function PageLayout({ children }: PageLayoutProps) {
+  // Kullanıcı etkileşimini algılayıp videoların sesini açmak için
+  useEffect(() => {
+    // Sayfa üzerinde herhangi bir tıklama algılandığında
+    const enableAudio = () => {
+      // Bu etkileşimi kullanarak tüm videolara ses ekle
+      document.querySelectorAll('video').forEach(video => {
+        video.muted = false;
+      });
+      // Event listener'ı kaldır, sadece bir kez çalışsın
+      document.removeEventListener('click', enableAudio);
+    };
+    
+    // Event listener ekle
+    document.addEventListener('click', enableAudio);
+    
+    // Component unmount olduğunda temizle
+    return () => {
+      document.removeEventListener('click', enableAudio);
+    };
+  }, []);
+  
   return (
     <>
       <SignedIn>
@@ -56,4 +77,4 @@ export function PageLayout({ children }: PageLayoutProps) {
       </SignedOut>
     </>
   );
-} 
+}

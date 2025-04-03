@@ -322,7 +322,7 @@ export default function PostPage() {
                         {post.image_url.includes('.mp4') || post.image_url.includes('/video/') ? (
                           <div 
                             ref={videoWrapperRef} 
-                            className={`flex justify-center ${isVideoPortrait ? 'max-w-[70%] mx-auto' : 'w-full'}`}
+                            className={`${isVideoPortrait ? 'w-full' : 'w-full'}`}
                           >
                             <video 
                               ref={videoRef}
@@ -330,10 +330,10 @@ export default function PostPage() {
                               controls
                               preload="metadata"
                               onLoadedMetadata={handleVideoLoad}
-                              className={`${isVideoPortrait ? 'h-auto max-h-[70vh] w-auto' : 'w-full h-auto max-h-[70vh]'} object-contain`}
+                              className={`${isVideoPortrait ? 'w-full' : 'w-full'} object-cover`}
                               playsInline
-                              muted
                               loop
+                              autoPlay
                             />
                           </div>
                         ) : (
