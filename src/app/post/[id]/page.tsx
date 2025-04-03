@@ -345,7 +345,10 @@ export default function PostPage() {
                         {post.image_url.includes('.mp4') || post.image_url.includes('/video/') ? (
                           <div 
                             ref={videoWrapperRef} 
-                            className="aspect-video w-full max-w-full max-h-[600px] mx-auto rounded-md overflow-hidden relative group cursor-pointer"
+                            className={`${isVideoPortrait 
+                              ? 'w-auto max-w-[480px] max-h-[800px] aspect-[9/16]' 
+                              : 'aspect-video w-full max-w-full max-h-[600px]'
+                            } mx-auto rounded-md overflow-hidden relative group cursor-pointer`}
                             onClick={handleVideoClick}
                           >
                             <video 

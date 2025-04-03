@@ -828,7 +828,10 @@ export function PostCard({
                 {image_url.includes('.mp4') || image_url.includes('/video/') ? (
                   <div 
                     ref={videoWrapperRef} 
-                    className="aspect-video w-full max-w-full max-h-[480px] mx-auto rounded-md overflow-hidden relative group cursor-pointer"
+                    className={`${isVideoPortrait 
+                      ? 'w-auto max-w-[350px] max-h-[600px] aspect-[9/16]' 
+                      : 'aspect-video w-full max-w-full max-h-[480px]'
+                    } mx-auto rounded-md overflow-hidden relative group cursor-pointer`}
                     onClick={handleVideoClick}
                   >
                     <video 

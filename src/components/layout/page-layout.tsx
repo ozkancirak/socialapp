@@ -30,37 +30,12 @@ export function PageLayout({ children }: PageLayoutProps) {
       
       // İlk tıklamadan sonra bu genel event listener'ı kaldır
       document.removeEventListener('click', enableAudio);
-      
-      // Kullanıcıyı bilgilendir
-      const toast = document.createElement('div');
-      toast.innerHTML = 'Videolarda ses açıldı';
-      toast.className = 'fixed bottom-4 right-4 bg-black/80 text-white px-4 py-2 rounded-md z-50 animate-fade-in-out';
-      toast.style.animation = 'fadeInOut 2s ease-in-out forwards';
-      document.body.appendChild(toast);
-      
-      // Toast'u kaldır
-      setTimeout(() => {
-        document.body.removeChild(toast);
-      }, 2000);
     };
-    
-    // Stiller ekle
-    const style = document.createElement('style');
-    style.innerHTML = `
-      @keyframes fadeInOut {
-        0% { opacity: 0; transform: translateY(10px); }
-        10% { opacity: 1; transform: translateY(0); }
-        90% { opacity: 1; transform: translateY(0); }
-        100% { opacity: 0; transform: translateY(-10px); }
-      }
-    `;
-    document.head.appendChild(style);
     
     document.addEventListener('click', enableAudio);
     
     return () => {
       document.removeEventListener('click', enableAudio);
-      document.head.removeChild(style);
     };
   }, []);
   
