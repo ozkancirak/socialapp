@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { PageLayout } from "@/components/layout/page-layout";
@@ -29,6 +29,8 @@ export default function PostPage() {
   const [isLoadingComments, setIsLoadingComments] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isVideoPortrait, setIsVideoPortrait] = useState(false);
   
   // Fetch post and comments
   useEffect(() => {
@@ -221,6 +223,27 @@ export default function PostPage() {
     }));
   };
   
+  // Video yüklendiğinde en-boy oranını kontrol edelim
+  const handleVideoLoad = (event: React.SyntheticEvent<HTMLVideoElement>) => {
+    const video = event.currentTarget;
+    // Video yüklendikten sonra boyutlarını kontrol edelim
+    setIsVideoPortrait(video.videoHeight > video.videoWidth);
+  };
+  
+  // Mouse üzerine gelince otomatik oynatma
+  const handleVideoMouseEnter = () => {
+    if (videoRef.current) {
+      videoRef.current.play().catch(e => console.log("Video otomatik oynatılamadı:", e));
+    }
+  };
+  
+  // Mouse ayrılınca durdurma
+  const handleVideoMouseLeave = () => {
+    if (videoRef.current) {
+      videoRef.current.pause();
+    }
+  };
+  
   if (error) {
     return (
       <PageLayout>
@@ -290,11 +313,21 @@ export default function PostPage() {
                     {post.image_url && (
                       <div className="mt-3 rounded-md overflow-hidden">
                         {post.image_url.includes('.mp4') || post.image_url.includes('/video/') ? (
-                          <video 
-                            src={post.image_url}
-                            controls
-                            className="w-full h-auto max-h-[500px] object-contain"
-                          />
+                          <div className={`flex justify-center ${isVideoPortrait ? 'max-w-[70%] mx-auto' : 'w-full'}`}>
+                            <video 
+                              ref={videoRef}
+                              src={post.image_url}
+                              controls
+                              preload="metadata"
+                              onLoadedMetadata={handleVideoLoad}
+                              onMouseEnter={handleVideoMouseEnter}
+                              onMouseLeave={handleVideoMouseLeave}
+                              className={`${isVideoPortrait ? 'h-auto max-h-[70vh] w-auto' : 'w-full h-auto max-h-[70vh]'} object-contain`}
+                              playsInline
+                              muted
+                              loop
+                            />
+                          </div>
                         ) : (
                           <img
                             src={post.image_url}
@@ -356,7 +389,7 @@ export default function PostPage() {
                           {comment.users?.full_name || comment.users?.username}
                         </Link>
                         <span className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
+                          @{comment.users?.username} • {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
                         </span>
                       </div>
                       <p className="mt-1">{comment.content}</p>

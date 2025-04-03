@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -83,6 +83,8 @@ export function PostCard({
   const { user, isSignedIn } = useUser();
   const router = useRouter();
   const commentInputRef = useRef<HTMLTextAreaElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isVideoPortrait, setIsVideoPortrait] = useState(false);
 
   // Sadece render aşamasında değil, işlem sırasında da kullanıcı kimliğini doğrulamamız gerekiyor
   console.dir({
@@ -717,6 +719,27 @@ export function PostCard({
     }
   };
 
+  // Video yüklendiğinde en-boy oranını kontrol edelim
+  const handleVideoLoad = (event: React.SyntheticEvent<HTMLVideoElement>) => {
+    const video = event.currentTarget;
+    // Video yüklendikten sonra boyutlarını kontrol edelim
+    setIsVideoPortrait(video.videoHeight > video.videoWidth);
+  };
+  
+  // Mouse üzerine gelince otomatik oynatma
+  const handleVideoMouseEnter = () => {
+    if (videoRef.current) {
+      videoRef.current.play().catch(e => console.log("Video otomatik oynatılamadı:", e));
+    }
+  };
+  
+  // Mouse ayrılınca durdurma
+  const handleVideoMouseLeave = () => {
+    if (videoRef.current) {
+      videoRef.current.pause();
+    }
+  };
+
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-3 pt-1 pb-0">
@@ -773,11 +796,21 @@ export function PostCard({
             {image_url && (
               <div className="mt-3 rounded-md overflow-hidden">
                 {image_url.includes('.mp4') || image_url.includes('/video/') ? (
-                  <video 
-                    src={image_url}
-                    controls
-                    className="w-full h-auto max-h-96 object-contain"
-                  />
+                  <div className={`flex justify-center ${isVideoPortrait ? 'max-w-[70%] mx-auto' : 'w-full'}`}>
+                    <video 
+                      ref={videoRef}
+                      src={image_url}
+                      controls
+                      preload="metadata"
+                      onLoadedMetadata={handleVideoLoad}
+                      onMouseEnter={handleVideoMouseEnter}
+                      onMouseLeave={handleVideoMouseLeave}
+                      className={`${isVideoPortrait ? 'h-auto max-h-[500px] w-auto' : 'w-full h-auto max-h-96'} object-contain`}
+                      playsInline
+                      muted
+                      loop
+                    />
+                  </div>
                 ) : (
                   <img
                     src={image_url} 
@@ -862,7 +895,7 @@ export function PostCard({
                             {comment.users?.full_name || comment.users?.username}
                           </Link>
                           <span className="text-xs text-muted-foreground">
-                            {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
+                            @{comment.users?.username} • {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
                           </span>
                         </div>
                         <p className="text-sm mt-1">{comment.content}</p>
