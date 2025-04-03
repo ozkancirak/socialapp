@@ -19,14 +19,21 @@ export function UserSync() {
     const syncUser = async () => {
       try {
         // Call the API endpoint instead of direct library function
-        const response = await fetch("/api/sync-user");
-        const data = await response.json();
-        
-        if (data.success) {
-          console.log("User sync successful");
-        } else {
-          console.error("Failed to sync user to database:", data.message);
-        }
+        // Using a small timeout to allow navigation to complete first
+        setTimeout(async () => {
+          const response = await fetch("/api/sync-user");
+          const data = await response.json();
+          
+          if (data.success) {
+            console.log("User sync successful:", data.message);
+          } else {
+            console.error("Failed to sync user to database:", data.message);
+            // Only show toast for persistent errors
+            if (window.location.pathname !== '/sync') {
+              toast.error("User sync failed. Please visit /sync page to fix.");
+            }
+          }
+        }, 1000);
       } catch (error) {
         console.error("Error during user sync:", error);
       }

@@ -4,7 +4,7 @@ import { PageLayout } from "@/components/layout/page-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useUser } from "@clerk/nextjs";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CheckCircle, AlertCircle, RefreshCw } from "lucide-react";
@@ -14,6 +14,23 @@ export default function SyncPage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<any>(null);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [apiReady, setApiReady] = useState(false);
+
+  // First check if API is available
+  useEffect(() => {
+    const checkApiStatus = async () => {
+      try {
+        // Make a HEAD request to the API endpoint
+        const response = await fetch("/api", { method: "HEAD" });
+        setApiReady(true);
+      } catch (error) {
+        console.error("API check failed:", error);
+        setApiReady(false);
+      }
+    };
+    
+    checkApiStatus();
+  }, []);
 
   const handleSync = async () => {
     if (!user) {
@@ -26,7 +43,9 @@ export default function SyncPage() {
     setSyncResult(null);
     
     try {
-      const response = await fetch("/api/sync-user");
+      // Add a timestamp to bypass cache
+      const timestamp = new Date().getTime();
+      const response = await fetch(`/api/sync-user?t=${timestamp}`);
       const data = await response.json();
       
       setSyncResult(data);
@@ -55,6 +74,26 @@ export default function SyncPage() {
     }, 3000);
   };
 
+  // Handle specific error types with helpful messages
+  const getErrorHelp = () => {
+    if (!syncResult?.error) return null;
+    
+    const error = syncResult.error;
+    let helpText = "";
+    
+    if (error.name === "TypeError" && error.message.includes("is not a function")) {
+      helpText = "This appears to be a server configuration issue with Clerk authentication. Try refreshing the page or visit the homepage, then come back.";
+    } else if (error.message?.includes("NEXT_PUBLIC_SUPABASE_URL")) {
+      helpText = "There's an issue with the Supabase configuration. Please make sure environment variables are properly set.";
+    }
+    
+    return helpText ? (
+      <div className="mt-2 text-sm text-red-700">
+        <p><strong>Troubleshooting:</strong> {helpText}</p>
+      </div>
+    ) : null;
+  };
+
   return (
     <PageLayout>
       <div className="container max-w-4xl py-10">
@@ -67,6 +106,16 @@ export default function SyncPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
+              {!apiReady && (
+                <Alert className="bg-yellow-50 border-yellow-200 text-yellow-800">
+                  <AlertCircle className="h-4 w-4 text-yellow-600" />
+                  <AlertTitle>API Status Check</AlertTitle>
+                  <AlertDescription>
+                    We're having trouble connecting to the API. This might affect synchronization.
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {syncStatus === 'success' && (
                 <Alert className="bg-green-50 border-green-200">
                   <CheckCircle className="h-4 w-4 text-green-600" />
@@ -91,6 +140,7 @@ export default function SyncPage() {
                   <AlertTitle className="text-red-800">Synchronization Failed</AlertTitle>
                   <AlertDescription>
                     There was a problem syncing your account. Please try again or contact support.
+                    {getErrorHelp()}
                   </AlertDescription>
                 </Alert>
               )}

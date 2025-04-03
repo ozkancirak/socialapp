@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
-import { auth, clerkClient } from '@clerk/nextjs';
+import { currentUser } from '@clerk/nextjs';
 import { createDeterministicUuid } from '@/lib/clerk-helpers';
 
 // Initialize Supabase client
@@ -21,17 +21,16 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 export async function GET(request: NextRequest) {
   try {
     // Get the current user from Clerk
-    const { userId } = auth();
+    const user = await currentUser();
     
-    if (!userId) {
+    if (!user || !user.id) {
       return NextResponse.json({ 
         success: false, 
         message: "Not authenticated" 
       }, { status: 401 });
     }
     
-    // Get more user details from Clerk
-    const clerkUser = await clerkClient.users.getUser(userId);
+    const userId = user.id;
     
     // Format the clerk ID for DB storage (remove 'user_' prefix)
     const formattedClerkId = userId.startsWith('user_') ? userId.substring(5) : userId;
@@ -64,16 +63,16 @@ export async function GET(request: NextRequest) {
     const supabaseUuid = createDeterministicUuid(userId);
     
     // Prepare username - use Clerk username or generate one
-    const username = clerkUser.username || 
+    const username = user.username || 
       `user_${Math.floor(Math.random() * 10000)}`;
     
     // Prepare full name
-    const fullName = clerkUser.firstName && clerkUser.lastName 
-      ? `${clerkUser.firstName} ${clerkUser.lastName}`.trim() 
+    const fullName = user.firstName && user.lastName 
+      ? `${user.firstName} ${user.lastName}`.trim() 
       : username;
     
     // Get avatar
-    const avatarUrl = clerkUser.imageUrl;
+    const avatarUrl = user.imageUrl;
     
     console.log(`Creating user with ID ${supabaseUuid} and Clerk ID ${formattedClerkId}`);
     
