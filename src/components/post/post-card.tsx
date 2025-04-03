@@ -364,7 +364,7 @@ export function PostCard({
       console.log("Fetched comments:", fetchedComments);
       
       // Beğeni durumlarını ve sayılarını ekle
-      const commentsWithLikes = [...fetchedComments];
+      const commentsWithLikes = [...fetchedComments] as unknown as Comment[];
       
       // Her yoruma varsayılan değerleri ekle
       commentsWithLikes.forEach(comment => {
@@ -378,76 +378,58 @@ export function PostCard({
           // Önce user ID'yi formatlayalım
           const formattedUserId = await ensureUuidFormat(user.id);
           
-          // Raw SQL kullanarak kullanıcının beğenilerini çek (daha güvenilir)
-          const { error: sqlError, data: sqlResult } = await supabase.rpc('exec_sql', {
-            sql: `
-              SELECT comment_id FROM comment_likes 
-              WHERE user_id = '${formattedUserId}'
-            `
-          });
-          
-          if (sqlError) {
-            console.error("Error fetching user likes with SQL:", sqlError);
-          } else if (sqlResult?.length > 0) {
-            // SQL sonucundan beğenilen yorumları al
-            const likedCommentIds = new Set();
+          // Use our dedicated function to check likes
+          const { error: likesError, data: likesData } = await supabase
+            .rpc('get_user_comment_likes', { p_user_id: formattedUserId });
             
-            // SQL sonucu bir dizi içinde olacaktır
-            // Her bir satır bir "comment_id" içeren bir nesne olmalı
-            for (const row of sqlResult) {
-              if (row[0]) { // İlk sütun comment_id olmalı
-                likedCommentIds.add(row[0]);
+          if (likesError) {
+            console.error("Error fetching user comment likes:", likesError);
+          } else if (likesData) {
+            console.log("Likes data from function:", likesData);
+            
+            // Map the data to comments
+            for (const likeInfo of likesData) {
+              const commentId = likeInfo.comment_id;
+              const isLiked = likeInfo.is_liked;
+              
+              // Find and update the comment
+              const comment = commentsWithLikes.find(c => c.id === commentId);
+              if (comment) {
+                comment.is_liked = isLiked;
               }
             }
-            
-            // Her yoruma beğeni durumunu ekle
-            for (const comment of commentsWithLikes) {
-              comment.is_liked = likedCommentIds.has(comment.id);
-            }
-            
-            console.log("User likes processed from SQL:", likedCommentIds);
           }
         } catch (likesError) {
           console.error("Error processing user likes:", likesError);
         }
       }
       
-      // Raw SQL ile beğeni sayılarını getir
+      // Get comment like counts from our view
       try {
-        // Raw SQL kullanarak beğeni sayılarını al
-        const { error: countError, data: countResult } = await supabase.rpc('exec_sql', {
-          sql: `
-            SELECT comment_id, COUNT(*) as likes_count 
-            FROM comment_likes 
-            GROUP BY comment_id
-          `
-        });
-        
+        const { error: countError, data: countData } = await supabase
+          .from('comment_likes_with_count')
+          .select('comment_id, likes_count')
+          .in('comment_id', commentsWithLikes.map(c => c.id));
+          
         if (countError) {
-          console.error("Error fetching likes counts with SQL:", countError);
-        } else if (countResult?.length > 0) {
-          // SQL sonucundan beğeni sayılarını al
-          const likesCountMap = {};
+          console.error("Error fetching comment like counts:", countError);
+        } else if (countData && countData.length > 0) {
+          console.log("Comment like counts data:", countData);
           
-          // SQL sonucu bir dizi içinde olacaktır
-          // Her bir satır "comment_id" ve "likes_count" içermeli
-          for (const row of countResult) {
-            if (row[0] && row[1]) { // İlk sütun comment_id, ikinci sütun count olmalı
-              likesCountMap[row[0]] = parseInt(row[1], 10);
+          // Update comments with like counts
+          for (const countInfo of countData) {
+            const commentId = countInfo.comment_id;
+            const likesCount = countInfo.likes_count;
+            
+            // Find and update the comment
+            const comment = commentsWithLikes.find(c => c.id === commentId);
+            if (comment) {
+              comment.likes_count = likesCount;
             }
           }
-          
-          // Beğeni sayılarını yorumlara ekle
-          for (const comment of commentsWithLikes) {
-            if (likesCountMap[comment.id]) {
-              comment.likes_count = likesCountMap[comment.id];
-            }
-          }
-          
-          console.log("Likes counts processed from SQL:", likesCountMap);
         }
       } catch (countError) {
-        console.error("Error processing likes counts:", countError);
+        console.error("Error processing comment like counts:", countError);
       }
       
       setComments(commentsWithLikes);
@@ -627,49 +609,83 @@ export function PostCard({
           });
           return; // Stop execution if user ID is null
       }
-      // --- End Null Check ---
       
       console.log("Formatted user ID for operation:", formattedUserId);
 
       if (isLiked) {
         // --- Unlike --- 
         console.log("Attempting to unlike comment via standard delete");
-        const { error: deleteError } = await supabase
-          .from('comment_likes')
-          .delete()
-          .match({ user_id: formattedUserId, comment_id: commentId });
-
-        if (deleteError) {
-          console.error("Unlike error (delete):", deleteError);
-          throw deleteError; // Throw the specific error
+        
+        // First try raw SQL which bypasses some RLS issues
+        try {
+          const { data: sqlResult, error: sqlError } = await supabase.rpc('exec_sql', {
+            sql: `DELETE FROM comment_likes WHERE user_id = '${formattedUserId}' AND comment_id = '${commentId}'`
+          });
+          
+          if (sqlError) {
+            console.error("SQL unlike error:", sqlError);
+            throw sqlError;
+          }
+          
+          console.log("Comment unliked via raw SQL");
+        } catch (sqlMethodError) {
+          console.error("Raw SQL method failed:", sqlMethodError);
+          
+          // Fall back to standard method
+          const { error: deleteError } = await supabase
+            .from('comment_likes')
+            .delete()
+            .match({ user_id: formattedUserId, comment_id: commentId });
+  
+          if (deleteError) {
+            console.error("Unlike error (delete):", deleteError);
+            throw deleteError; // Throw the specific error
+          }
+          console.log("Comment unliked successfully via standard method");
         }
-        console.log("Comment unliked successfully");
+        
         toast.success("Removed like from comment");
-
       } else {
         // --- Like --- 
-        console.log("Attempting to like comment via standard insert");
-        const { error: insertError } = await supabase
-          .from('comment_likes')
-          .insert({
-            user_id: formattedUserId,
-            comment_id: commentId
-          }); 
-          // ON CONFLICT is handled by the UNIQUE constraint in the DB
-          // Supabase insert won't throw an error for conflict by default if RLS allows
-          // but it might return an error if RLS prevents it
-
-        if (insertError) {
-          // Check if it's a unique constraint violation (expected on conflict)
-          if (insertError.code === '23505') { // PostgreSQL unique violation code
-             console.warn("Like already exists (unique constraint violation), proceeding as success.");
-             // Optionally, re-fetch the like state here if optimistic update could be wrong
-          } else {
-            console.error("Like error (insert):", insertError);
-            throw insertError; // Throw other specific errors
+        console.log("Attempting to like comment");
+        
+        // First try raw SQL which bypasses some RLS issues
+        try {
+          const { data: sqlResult, error: sqlError } = await supabase.rpc('exec_sql', {
+            sql: `INSERT INTO comment_likes (user_id, comment_id, created_at) 
+                  VALUES ('${formattedUserId}', '${commentId}', NOW())
+                  ON CONFLICT DO NOTHING`
+          });
+          
+          if (sqlError) {
+            console.error("SQL like error:", sqlError);
+            throw sqlError;
           }
-        } 
-        console.log("Comment liked successfully (or like already existed)");
+          
+          console.log("Comment liked via raw SQL");
+        } catch (sqlMethodError) {
+          console.error("Raw SQL method failed:", sqlMethodError);
+          
+          // Fall back to standard method
+          const { error: insertError } = await supabase
+            .from('comment_likes')
+            .insert({
+              user_id: formattedUserId,
+              comment_id: commentId
+            }); 
+            
+          if (insertError) {
+            // Check if it's a unique constraint violation (expected on conflict)
+            if (insertError.code === '23505') { // PostgreSQL unique violation code
+              console.warn("Like already exists (unique constraint violation), proceeding as success.");
+            } else {
+              console.error("Like error (insert):", insertError);
+              throw insertError; // Throw other specific errors
+            }
+          }
+          console.log("Comment liked successfully via standard method");
+        }
+        
         toast.success("Liked comment");
       }
 
@@ -703,10 +719,10 @@ export function PostCard({
 
   return (
     <Card className="overflow-hidden">
-      <CardContent className="p-4">
-        <div className="flex items-start gap-3">
+      <CardContent className="p-3 pt-1 pb-0">
+        <div className="flex items-start gap-2">
           <Link href={`/profile/${users?.username}`}>
-            <Avatar className="h-10 w-10">
+            <Avatar className="h-9 w-9">
               <AvatarImage src={users?.avatar_url} alt={users?.username} />
               <AvatarFallback>{users?.username?.[0]?.toUpperCase()}</AvatarFallback>
             </Avatar>
@@ -717,7 +733,7 @@ export function PostCard({
                 <Link href={`/profile/${users?.username}`} className="font-semibold hover:underline">
                   {users?.full_name || users?.username}
                 </Link>
-                <p className="text-sm text-muted-foreground">@{users?.username}</p>
+                <p className="text-xs text-muted-foreground -mt-0.5">@{users?.username}</p>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">
@@ -753,7 +769,7 @@ export function PostCard({
                 </DropdownMenu>
               </div>
             </div>
-            <p className="mt-2">{content}</p>
+            <p className="mt-1.5">{content}</p>
             {image_url && (
           <div className="mt-3 rounded-md overflow-hidden">
             <img
@@ -766,47 +782,49 @@ export function PostCard({
           </div>
         </div>
       </CardContent>
-      <CardFooter className="px-4 py-2 border-t flex justify-between">
-        <Button
-          variant={isLikedState ? "default" : "ghost"}
-          size="sm"
-          className={`flex gap-1 items-center transition-all duration-200 ${
-            isLikedState 
-              ? "bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-500" 
-              : "hover:text-red-500"
-          }`}
-          onClick={handleLikeClick}
-        >
-          <Heart
-            className={`h-5 w-5 transition-all duration-200 ${
+      <CardFooter className="px-3 py-0 border-t flex items-center min-h-0">
+        <div className="flex items-center space-x-4 w-full py-0.5">
+          <Button
+            variant={isLikedState ? "default" : "ghost"}
+            size="sm"
+            className={`flex gap-1 items-center h-6 px-2 transition-all duration-200 ${
               isLikedState 
-                ? "fill-red-500 text-red-500 scale-110" 
-                : "hover:scale-110 hover:fill-red-200"
+                ? "bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-500" 
+                : "hover:text-red-500"
             }`}
-          />
-          <span className={isLikedState ? "font-medium" : ""}>{likesCountState}</span>
-        </Button>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="flex gap-1 items-center"
-          onClick={handleCommentClick}
-        >
-            <MessageCircle className="h-4 w-4" />
-          <span>{commentsCountState}</span>
+            onClick={handleLikeClick}
+          >
+            <Heart
+              className={`h-4 w-4 transition-all duration-200 ${
+                isLikedState 
+                  ? "fill-red-500 text-red-500 scale-110" 
+                  : "hover:scale-110 hover:fill-red-200"
+              }`}
+            />
+            <span className={`${isLikedState ? "font-medium" : ""} text-xs`}>{likesCountState}</span>
           </Button>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          className="flex gap-1 items-center"
-          onClick={handleViewDetailClick}
-        >
-          <Share2 className="h-4 w-4" />
-        </Button>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="flex gap-1 items-center h-6 px-2"
+            onClick={handleCommentClick}
+          >
+            <MessageCircle className="h-4 w-4" />
+            <span className="text-xs">{commentsCountState}</span>
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="flex gap-1 items-center h-6 px-2"
+            onClick={handleViewDetailClick}
+          >
+            <Share2 className="h-4 w-4" />
+          </Button>
+        </div>
       </CardFooter>
       
       {/* Collapsible Comments Section */}
-      <Collapsible open={showComments} onOpenChange={setShowComments}>
+      <Collapsible open={showComments} onOpenChange={setShowComments} className="-mt-1">
         <CollapsibleContent className="border-t">
           {/* Comments Loading State */}
           {isLoadingComments && (
@@ -851,7 +869,7 @@ export function PostCard({
                                 ? "bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-500" 
                                 : "text-muted-foreground hover:text-red-500"
                             }`}
-                            onClick={() => handleLikeComment(comment.id, comment.is_liked)}
+                            onClick={() => handleLikeComment(comment.id, comment.is_liked || false)}
                           >
                             <Heart 
                               className={`h-3 w-3 transition-all ${

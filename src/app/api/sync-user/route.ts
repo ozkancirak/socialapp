@@ -83,6 +83,10 @@ export async function GET(request: NextRequest) {
         const clerkId = userId;
         console.log("Clerk ID:", clerkId);
         
+        // The DB removes 'user_' prefix via trigger, so ensure our query matches
+        const cleanClerkId = clerkId.startsWith('user_') ? clerkId.substring(5) : clerkId;
+        console.log("Using cleaned Clerk ID for DB lookup:", cleanClerkId);
+        
         // Build user data with proper name information
         let fullName = '';
         let displayName = '';
@@ -139,7 +143,7 @@ export async function GET(request: NextRequest) {
           const { data: existingUser, error: findError } = await supabase
             .from('users')
             .select('id, username')
-            .eq('clerk_id', clerkId)
+            .eq('clerk_id', cleanClerkId)
             .maybeSingle();
           
           if (findError) {
@@ -159,11 +163,9 @@ export async function GET(request: NextRequest) {
                 .update({
                   username: displayName,
                   full_name: fullName,
-                  email: email,
-                  avatar_url: avatarUrl,
-                  updated_at: new Date().toISOString()
+                  avatar_url: avatarUrl
                 })
-                .eq('clerk_id', clerkId)
+                .eq('clerk_id', cleanClerkId)
                 .select();
                 
               if (updateError) {
@@ -196,13 +198,11 @@ export async function GET(request: NextRequest) {
           try {
             // Try with all fields first
             const userData = {
-              clerk_id: clerkId,
+              clerk_id: cleanClerkId,
               username: displayName,
               full_name: fullName,
-              email: email,
               avatar_url: avatarUrl,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
+              created_at: new Date().toISOString()
             };
             
             console.log("Attempting to insert user with data:", userData);
@@ -219,13 +219,11 @@ export async function GET(request: NextRequest) {
                 console.log("ID field error detected, trying without ID");
                 // Try without ID field
                 const simplifiedUserData = {
-                  clerk_id: clerkId,
+                  clerk_id: cleanClerkId,
                   username: displayName,
                   full_name: fullName,
-                  email: email,
                   avatar_url: avatarUrl,
-                  created_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString()
+                  created_at: new Date().toISOString()
                 };
                 
                 console.log("Attempting simplified insert:", simplifiedUserData);

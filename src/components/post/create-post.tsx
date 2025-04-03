@@ -5,7 +5,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Image as ImageIcon, X } from "lucide-react";
+import { Image as ImageIcon, X, Paperclip } from "lucide-react";
 import { v4 as uuidv4 } from "@/lib/utils";
 import { useUser } from "@clerk/nextjs";
 import { toast } from "sonner";
@@ -21,6 +21,7 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
   const [content, setContent] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isVideo, setIsVideo] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useUser();
@@ -29,19 +30,34 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
     const file = e.target.files && e.target.files[0];
     if (file) {
       setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      const isVideoFile = file.type.startsWith('video/');
+      setIsVideo(isVideoFile);
+      
+      if (isVideoFile) {
+        // For videos, create an object URL for preview
+        const videoUrl = URL.createObjectURL(file);
+        setImagePreview(videoUrl);
+      } else {
+        // For images, use FileReader for preview
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setImagePreview(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+      }
     }
   };
 
   const handleRemoveImage = () => {
     setImageFile(null);
     setImagePreview(null);
+    setIsVideo(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
+    }
+    // If preview was created with URL.createObjectURL, revoke it to free memory
+    if (isVideo && imagePreview) {
+      URL.revokeObjectURL(imagePreview);
     }
   };
 
@@ -51,14 +67,14 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
     if (!user) return;
     
     if (!content.trim() && !imageFile) {
-      toast.error("Please add content or an image to your post");
+      toast.error("Please add content or media to your post");
       return;
     }
     
     try {
       setIsSubmitting(true);
       
-      let imageUrl = null;
+      let mediaUrl = null;
       
       // First, ensure user exists in the database
       try {
@@ -104,11 +120,11 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
         console.log("Using test UUID for post");
       }
       
-      // Try to upload image if provided
+      // Try to upload media if provided
       if (imageFile) {
-        imageUrl = await uploadToCloudinary(imageFile);
-        if (!imageUrl) {
-          toast.error("Image upload failed");
+        mediaUrl = await uploadToCloudinary(imageFile);
+        if (!mediaUrl) {
+          toast.error("Media upload failed");
         }
       }
       
@@ -125,7 +141,7 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
           .insert({
             user_id: formattedUserId,
             content: content.trim(),
-            image_url: imageUrl,
+            image_url: mediaUrl,
           });
         
         if (error) {
@@ -138,6 +154,12 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
         setContent("");
         setImageFile(null);
         setImagePreview(null);
+        setIsVideo(false);
+        
+        // Revoke URL if needed
+        if (isVideo && imagePreview) {
+          URL.revokeObjectURL(imagePreview);
+        }
         
         toast.success("Post created successfully");
         
@@ -174,11 +196,19 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
               />
               {imagePreview && (
                 <div className="relative mt-3 rounded-md overflow-hidden">
-                  <img 
-                    src={imagePreview} 
-                    alt="Preview" 
-                    className="w-full h-auto max-h-80 object-cover"
-                  />
+                  {isVideo ? (
+                    <video 
+                      src={imagePreview} 
+                      controls
+                      className="w-full h-auto max-h-80 object-contain"
+                    />
+                  ) : (
+                    <img 
+                      src={imagePreview} 
+                      alt="Preview" 
+                      className="w-full h-auto max-h-80 object-cover"
+                    />
+                  )}
                   <Button
                     type="button"
                     variant="destructive"
@@ -198,7 +228,7 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept="image/*,video/*"
               id="post-image"
               className="hidden"
               onChange={handleImageChange}
@@ -209,8 +239,8 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
               size="sm"
               onClick={() => fileInputRef.current?.click()}
             >
-              <ImageIcon className="h-4 w-4 mr-2" />
-              Add Image
+              <Paperclip className="h-4 w-4 mr-2" />
+              Add Media
             </Button>
           </div>
           <Button 
@@ -218,7 +248,12 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
             size="sm"
             disabled={isSubmitting || (!content.trim() && !imageFile)}
           >
-            {isSubmitting ? "Posting..." : "Post"}
+            {isSubmitting ? (
+              <>
+                <span className="animate-spin h-4 w-4 mr-2 border-2 border-current border-t-transparent rounded-full"></span>
+                Posting...
+              </>
+            ) : "Post"}
           </Button>
         </CardFooter>
       </form>
