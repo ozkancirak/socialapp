@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
-import { autoSyncCurrentUser } from "@/lib/db/auto-sync";
 import { toast } from "sonner";
 
 /**
@@ -19,13 +18,14 @@ export function UserSync() {
     // Helper function to run sync when component mounts
     const syncUser = async () => {
       try {
-        const result = await autoSyncCurrentUser();
+        // Call the API endpoint instead of direct library function
+        const response = await fetch("/api/sync-user");
+        const data = await response.json();
         
-        if (result) {
+        if (data.success) {
           console.log("User sync successful");
         } else {
-          // Only show toast on error to avoid disrupting normal usage
-          console.error("Failed to sync user to database");
+          console.error("Failed to sync user to database:", data.message);
         }
       } catch (error) {
         console.error("Error during user sync:", error);

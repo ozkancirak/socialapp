@@ -1,11 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs';
+import { auth, clerkClient } from '@clerk/nextjs';
 import { createDeterministicUuid } from '@/lib/clerk-helpers';
 
 // Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY as string;
+
+// Safety checks for server-side environment variables
+if (!supabaseUrl) {
+  console.error("NEXT_PUBLIC_SUPABASE_URL is not set");
+}
+
+if (!supabaseServiceKey) {
+  console.error("SUPABASE_SERVICE_ROLE_KEY is not set");
+}
+
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 export async function GET(request: NextRequest) {
@@ -19,6 +29,9 @@ export async function GET(request: NextRequest) {
         message: "Not authenticated" 
       }, { status: 401 });
     }
+    
+    // Get more user details from Clerk
+    const clerkUser = await clerkClient.users.getUser(userId);
     
     // Format the clerk ID for DB storage (remove 'user_' prefix)
     const formattedClerkId = userId.startsWith('user_') ? userId.substring(5) : userId;
@@ -50,6 +63,18 @@ export async function GET(request: NextRequest) {
     // Create a deterministic UUID from the Clerk ID
     const supabaseUuid = createDeterministicUuid(userId);
     
+    // Prepare username - use Clerk username or generate one
+    const username = clerkUser.username || 
+      `user_${Math.floor(Math.random() * 10000)}`;
+    
+    // Prepare full name
+    const fullName = clerkUser.firstName && clerkUser.lastName 
+      ? `${clerkUser.firstName} ${clerkUser.lastName}`.trim() 
+      : username;
+    
+    // Get avatar
+    const avatarUrl = clerkUser.imageUrl;
+    
     console.log(`Creating user with ID ${supabaseUuid} and Clerk ID ${formattedClerkId}`);
     
     // Create the user in Supabase
@@ -59,7 +84,9 @@ export async function GET(request: NextRequest) {
         { 
           id: supabaseUuid,
           clerk_id: formattedClerkId,
-          username: `user_${Math.floor(Math.random() * 10000)}`, // Temporary username
+          username: username,
+          full_name: fullName,
+          avatar_url: avatarUrl,
           created_at: new Date().toISOString()
         }
       ])
@@ -72,6 +99,25 @@ export async function GET(request: NextRequest) {
       let details = '';
       
       if (error.code === '23505') { // Unique violation
+        // If it's a duplicate error, try to get the existing user
+        try {
+          const { data: existingUser } = await supabase
+            .from('users')
+            .select('id')
+            .eq('clerk_id', formattedClerkId)
+            .single();
+            
+          if (existingUser) {
+            return NextResponse.json({
+              success: true,
+              message: "Found existing user after conflict",
+              userId: existingUser.id
+            });
+          }
+        } catch (e) {
+          console.error("Failed to fetch user after conflict:", e);
+        }
+        
         details = "User with this ID or clerk_id already exists";
       } else if (error.code === '23502') { // Not null violation
         details = "Missing required field";

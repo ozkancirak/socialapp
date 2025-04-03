@@ -6,11 +6,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useUser } from "@clerk/nextjs";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { CheckCircle, AlertCircle, RefreshCw } from "lucide-react";
 
 export default function SyncPage() {
   const { user } = useUser();
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<any>(null);
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
   const handleSync = async () => {
     if (!user) {
@@ -19,6 +22,9 @@ export default function SyncPage() {
     }
 
     setIsSyncing(true);
+    setSyncStatus('idle');
+    setSyncResult(null);
+    
     try {
       const response = await fetch("/api/sync-user");
       const data = await response.json();
@@ -26,16 +32,27 @@ export default function SyncPage() {
       setSyncResult(data);
       
       if (data.success) {
+        setSyncStatus('success');
         toast.success("User successfully synced to Supabase!");
       } else {
+        setSyncStatus('error');
         toast.error(`Sync failed: ${data.message}`);
       }
     } catch (error) {
       console.error("Error during sync:", error);
+      setSyncStatus('error');
+      setSyncResult({ error: "Network or server error occurred" });
       toast.error("Failed to sync user. Please try again.");
     } finally {
       setIsSyncing(false);
     }
+  };
+
+  const autoSync = async () => {
+    handleSync();
+    setTimeout(() => {
+      window.location.href = '/';
+    }, 3000);
   };
 
   return (
@@ -50,6 +67,34 @@ export default function SyncPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
+              {syncStatus === 'success' && (
+                <Alert className="bg-green-50 border-green-200">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <AlertTitle className="text-green-800">Success!</AlertTitle>
+                  <AlertDescription className="text-green-700">
+                    Your account has been successfully synchronized. You can now use all features of the application.
+                  </AlertDescription>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-2"
+                    onClick={() => window.location.href = '/'}
+                  >
+                    Go to Home
+                  </Button>
+                </Alert>
+              )}
+
+              {syncStatus === 'error' && (
+                <Alert className="bg-red-50 border-red-200 text-red-700">
+                  <AlertCircle className="h-4 w-4 text-red-600" />
+                  <AlertTitle className="text-red-800">Synchronization Failed</AlertTitle>
+                  <AlertDescription>
+                    There was a problem syncing your account. Please try again or contact support.
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <div>
                 <p className="text-muted-foreground mb-4">
                   If you're experiencing issues with posting or interacting with content,
@@ -63,12 +108,29 @@ export default function SyncPage() {
                   </div>
                 )}
 
-                <Button 
-                  onClick={handleSync} 
-                  disabled={isSyncing || !user}
-                >
-                  {isSyncing ? "Syncing..." : "Sync Account"}
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={handleSync} 
+                    disabled={isSyncing || !user}
+                    variant="outline"
+                  >
+                    {isSyncing ? (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                        Syncing...
+                      </>
+                    ) : (
+                      "Sync Account"
+                    )}
+                  </Button>
+                  
+                  <Button 
+                    onClick={autoSync}
+                    disabled={isSyncing || !user}
+                  >
+                    Sync & Continue
+                  </Button>
+                </div>
               </div>
 
               {syncResult && (
