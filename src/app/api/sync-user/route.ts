@@ -66,7 +66,8 @@ export async function GET(request: NextRequest) {
       // Get full user profile from Clerk
       try {
         console.log("Fetching user profile from Clerk API");
-        const userProfile = await clerkClient.users.getUser(userId);
+        const clerk = await clerkClient();
+        const userProfile = await clerk.users.getUser(userId);
         
         console.log("Clerk API response:", JSON.stringify(userProfile, null, 2).substring(0, 200) + "...");
         
