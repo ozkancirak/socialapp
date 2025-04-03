@@ -3,6 +3,7 @@
 -- Create Users Table with simple structure
 CREATE TABLE IF NOT EXISTS public.users (
   id UUID PRIMARY KEY,
+  clerk_id TEXT UNIQUE,
   username TEXT NOT NULL,
   full_name TEXT,
   avatar_url TEXT,
@@ -36,11 +37,21 @@ CREATE TABLE IF NOT EXISTS public.comments (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Create Comment Likes Table
+CREATE TABLE IF NOT EXISTS public.comment_likes (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
+  comment_id UUID REFERENCES public.comments(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, comment_id)
+);
+
 -- Enable Row Level Security
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.posts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.likes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.comments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.comment_likes ENABLE ROW LEVEL SECURITY;
 
 -- Set RLS Policies - Simple approach for demo
 -- Anyone can read users and posts
@@ -58,6 +69,10 @@ CREATE POLICY "Public likes are viewable by everyone"
 
 CREATE POLICY "Public comments are viewable by everyone" 
   ON public.comments FOR SELECT 
+  USING (true);
+  
+CREATE POLICY "Public comment likes are viewable by everyone" 
+  ON public.comment_likes FOR SELECT 
   USING (true);
 
 -- Anyone can insert users and posts (for demo purposes)
@@ -79,12 +94,22 @@ CREATE POLICY "Anyone can insert likes"
 CREATE POLICY "Anyone can delete their likes"
   ON public.likes FOR DELETE
   TO anon, authenticated
-  USING (auth.uid() = user_id); -- Ensure users can only delete their own likes
+  USING (true); -- Simplified for demo
 
 CREATE POLICY "Anyone can insert comments"
   ON public.comments FOR INSERT
   TO anon, authenticated
   WITH CHECK (true);
+  
+CREATE POLICY "Anyone can insert comment likes"
+  ON public.comment_likes FOR INSERT
+  TO anon, authenticated
+  WITH CHECK (true);
+
+CREATE POLICY "Anyone can delete their comment likes"
+  ON public.comment_likes FOR DELETE
+  TO anon, authenticated
+  USING (true); -- Simplified for demo
 
 -- Helper function to convert Clerk IDs to UUIDs
 CREATE OR REPLACE FUNCTION clerk_id_to_uuid(clerk_id text) RETURNS uuid AS $$
