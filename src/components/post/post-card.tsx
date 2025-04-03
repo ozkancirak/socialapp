@@ -805,7 +805,7 @@ export function PostCard({
                 {image_url.includes('.mp4') || image_url.includes('/video/') ? (
                   <div 
                     ref={videoWrapperRef} 
-                    className={`${isVideoPortrait ? 'w-full' : 'w-full'}`}
+                    className="aspect-video w-full max-w-full max-h-[480px] mx-auto rounded-md overflow-hidden"
                   >
                     <video 
                       ref={videoRef}
@@ -813,7 +813,7 @@ export function PostCard({
                       controls
                       preload="metadata"
                       onLoadedMetadata={handleVideoLoad}
-                      className={`${isVideoPortrait ? 'w-full' : 'w-full'} object-cover`}
+                      className="w-full h-full object-contain"
                       playsInline
                       loop
                       autoPlay
