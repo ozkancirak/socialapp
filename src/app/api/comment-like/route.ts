@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
-import { ensureUuidFormat } from '@/lib/utils';
+import { ensureUuidFormat } from '@/lib/clerk-helpers';
 
 // Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
@@ -39,54 +39,8 @@ export async function POST(request: NextRequest) {
       }, { status: 404 });
     }
 
-    // Ensure the comment_likes table exists
-    try {
-      await supabase.rpc('exec_sql', {
-        sql: `
-          -- Comment Likes Table
-          CREATE TABLE IF NOT EXISTS comment_likes (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            comment_id UUID NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
-            user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
-            
-            -- Ensure a user can only like a comment once
-            UNIQUE(user_id, comment_id)
-          );
-          
-          -- Add RLS policies if not exists
-          DO $$ 
-          BEGIN
-            IF NOT EXISTS (
-              SELECT 1 FROM pg_policies 
-              WHERE tablename = 'comment_likes' AND policyname = 'Allow authenticated users to create comment likes'
-            ) THEN
-              ALTER TABLE comment_likes ENABLE ROW LEVEL SECURITY;
-              
-              -- Allow authenticated users to create comment likes
-              CREATE POLICY "Allow authenticated users to create comment likes" ON comment_likes
-              FOR INSERT TO authenticated USING (true) WITH CHECK (true);
-              
-              -- Allow authenticated users to delete their own comment likes
-              CREATE POLICY "Allow authenticated users to delete their own comment likes" ON comment_likes
-              FOR DELETE TO authenticated USING (auth.uid() = user_id);
-              
-              -- Allow anyone to read comment likes
-              CREATE POLICY "Allow anyone to read comment likes" ON comment_likes
-              FOR SELECT USING (true);
-              
-              -- Create indexes for faster lookup
-              CREATE INDEX IF NOT EXISTS comment_likes_comment_id_idx ON comment_likes(comment_id);
-              CREATE INDEX IF NOT EXISTS comment_likes_user_id_idx ON comment_likes(user_id);
-            END IF;
-          END $$;
-        `
-      });
-      console.log("Ensured comment_likes table exists");
-    } catch (setupError) {
-      console.error("Error setting up comment_likes table:", setupError);
-      // Continue anyway - table might already exist
-    }
+    // Note: We're assuming the comment_likes table already exists in the database.
+    // It should be created through the Supabase SQL Editor instead of here.
 
     if (action === 'like') {
       // First check if the like already exists
