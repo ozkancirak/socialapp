@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
-import { ensureUuidFormat } from '@/lib/clerk-helpers';
+import { ensureUuidFormat } from '../../../lib/clerk-helpers';
 
 // Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
