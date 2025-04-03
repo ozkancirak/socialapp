@@ -186,7 +186,7 @@ export async function GET(request: NextRequest) {
               return NextResponse.json({
                 success: false,
                 message: "Exception during user update",
-                error: String(updateCatchError)
+                error: typeof updateCatchError === 'object' ? JSON.stringify(updateCatchError) : String(updateCatchError)
               }, { status: 500 });
             }
           }
@@ -262,7 +262,7 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({
               success: false,
               message: "Error creating user in database",
-              error: String(createError)
+              error: typeof createError === 'object' ? JSON.stringify(createError) : String(createError)
             }, { status: 500 });
           }
         } catch (userSyncError) {
@@ -270,7 +270,7 @@ export async function GET(request: NextRequest) {
           return NextResponse.json({
             success: false,
             message: "Error syncing user with database",
-            error: String(userSyncError)
+            error: typeof userSyncError === 'object' ? JSON.stringify(userSyncError) : String(userSyncError)
           }, { status: 500 });
         }
       } catch (clerkApiError) {
@@ -278,7 +278,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({
           success: false,
           message: "Error fetching user from Clerk API",
-          error: String(clerkApiError)
+          error: typeof clerkApiError === 'object' ? JSON.stringify(clerkApiError) : String(clerkApiError)
         }, { status: 500 });
       }
     } catch (authError) {
@@ -286,7 +286,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         success: false,
         message: "Error getting auth object",
-        error: String(authError)
+        error: typeof authError === 'object' ? JSON.stringify(authError) : String(authError)
       }, { status: 500 });
     }
   } catch (error: any) {
