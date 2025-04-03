@@ -1,36 +1,146 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Social Media App
+
+A modern social media application built with Next.js, Typescript, Tailwind CSS, Supabase, and Clerk.
+
+## Tech Stack
+
+### Core Framework
+
+- Next.js (App Router)
+- React
+- TypeScript
+- Tailwind CSS
+
+### Authentication & Database
+
+- Clerk - Authentication and user management
+- Supabase - Database and storage
+
+### UI Components
+
+- Radix UI - Headless UI components
+- Shadcn UI - Re-usable components built on Radix UI
+- Lucide React - Icon library
+- Next Themes - Theme management
+
+### Form & Data Management
+
+- React Hook Form - Form management
+- Zod - Schema validation
+- TanStack Query (React Query) - Server state management
+
+### Media & Rich Content
+
+- Tiptap - Rich text editor
+- Cloudinary - Media storage
+- React Cropper - Image cropping
+- Socket.io - Real-time messaging (optional)
+
+## Features
+
+- User authentication with Clerk
+- User profiles
+- News feed
+- Create, edit, delete posts
+- Like and comment on posts
+- Follow/unfollow users
+- Real-time notifications
+- Dark mode support
+- Responsive design
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 18+
+- pnpm
+
+### Installation
+
+1. Clone the repository:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/yourusername/socialapp.git
+cd socialapp
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pnpm install
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+3. Set up environment variables:
 
-## Learn More
+- Copy the `.env.example` file to `.env.local`
+- Fill in your API keys and settings
 
-To learn more about Next.js, take a look at the following resources:
+4. Set up Supabase:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- First, execute the `setup.sql` in your Supabase SQL editor to create the helper function
+- Then run the setup script to create the required functions for Clerk integration:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+pnpm setup-supabase
+```
+
+5. Run the development server:
+
+```bash
+pnpm dev
+```
+
+6. Open [http://localhost:3000](http://localhost:3000) in your browser
+
+## Project Structure
+
+```
+src/
+├── app/             # Next.js App Router
+├── components/      # React components
+│   ├── auth/        # Authentication components
+│   ├── layout/      # Layout components
+│   ├── post/        # Post-related components
+│   ├── profile/     # Profile-related components
+│   └── ui/          # UI components (Shadcn UI)
+└── lib/             # Utility functions and libs
+    ├── actions/     # Server actions
+    ├── api/         # API related code
+    ├── auth/        # Auth utilities
+    ├── db/          # Database utilities
+    ├── utils/       # Helper utilities
+    └── validations/ # Zod schemas
+```
 
 ## Deploy on Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## License
+
+This project is licensed under the MIT License.
+
+## Supabase Setup
+
+To set up the Supabase backend:
+
+1. First, create a new Supabase project
+2. Add your Supabase URL and anon key to `.env.local`
+3. Run the setup script to create the database schema and functions:
+
+```bash
+pnpm setup-supabase
+```
+
+This script will:
+
+- Create the necessary tables (users, posts)
+- Set up Row Level Security policies
+- Create helper functions
+- Create a storage bucket for post images
+
+Alternatively, you can manually run the SQL files in the `supabase` directory:
+
+- `setup.sql` - Helper functions
+- `schema.sql` - Main database schema and policies
+- `storage.sql` - Storage bucket helpers
