@@ -19,34 +19,34 @@ export async function ensureUuidFormat(clerkId: string): Promise<string | null> 
   console.log(`Querying Supabase user UUID for Clerk ID: ${cleanClerkId}`);
 
   try {
+    // First try with clerk_id field (normal structure)
     const { data, error } = await supabase
       .from('users')
-      .select('id') // Select the Supabase UUID
-      .eq('clerk_id', cleanClerkId) // Filter by the Clerk ID
-      .single(); // Expect only one user or null
-
-    if (error) {
-      // Handle case where user is not found (data will be null, error might indicate reason)
-      if (error.code === 'PGRST116') { // PostgREST code for "Fetched 0 rows"
-        console.warn(`User with Clerk ID ${cleanClerkId} not found in Supabase users table.`);
-        toast.error("User profile not found in database. Please ensure syncing is complete.");
-      } else {
-        // Log other unexpected errors
-        console.error("Error fetching user UUID from Supabase:", error);
-        toast.error("Database error fetching user profile.");
-      }
-      return null; // Return null on error or if not found
-    }
+      .select('id') 
+      .eq('clerk_id', cleanClerkId)
+      .maybeSingle();
 
     if (data && data.id) {
       console.log(`Found Supabase UUID: ${data.id} for Clerk ID: ${cleanClerkId}`);
-      return data.id; // Return the Supabase UUID
-    } else {
-      // Should be covered by error handling above, but as a safeguard:
-      console.warn(`User with Clerk ID ${cleanClerkId} not found, but no specific error code.`);
-      toast.error("User profile not found in database.");
-      return null;
+      return data.id;
     }
+    
+    // If we can't find by clerk_id field, try using the ID field directly
+    // (in case we're using the clerk ID as the primary key)
+    const { data: directData, error: directError } = await supabase
+      .from('users')
+      .select('id') 
+      .eq('id', cleanClerkId)
+      .maybeSingle();
+      
+    if (directData && directData.id) {
+      console.log(`Found Supabase ID directly: ${directData.id}`);
+      return directData.id;
+    }
+
+    console.warn(`User with Clerk ID ${cleanClerkId} not found in Supabase users table.`);
+    toast.error("User profile not found in database. Please visit /sync to ensure syncing is complete.");
+    return null;
 
   } catch (err) {
     console.error("Unexpected error in ensureUuidFormat:", err);

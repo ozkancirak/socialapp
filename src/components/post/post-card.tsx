@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Heart, MessageCircle, Share2, Trash2, MoreVertical, ChevronDown, ChevronUp, Send } from "lucide-react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
-import { createClient } from "@supabase/supabase-js";
 import { useUser } from "@clerk/nextjs";
 import { ensureUuidFormat } from "@/lib/clerk-helpers";
 import { toast } from "sonner";
@@ -20,11 +19,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import supabase from "@/lib/supabase-client";
 
 // Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
+// const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
+// const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 type PostUser = {
   username: string;

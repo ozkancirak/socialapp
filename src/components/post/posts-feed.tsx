@@ -2,16 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { PostCard } from "./post-card";
-import { createClient } from "@supabase/supabase-js";
 import { useInView } from "react-intersection-observer";
 import { Loader2 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { ensureUuidFormat } from "@/lib/clerk-helpers";
+import supabase from "@/lib/supabase-client";
 
 // Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
+// const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
+// const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 type Post = {
   id: string;

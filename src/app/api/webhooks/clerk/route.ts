@@ -115,33 +115,84 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // TODO: Handle user.updated and user.deleted events
+  // Handle user.updated and user.deleted events
   if (eventType === 'user.updated') {
       console.log("User updated event received:", evt.data.id);
-      // Implement logic to update the user in Supabase
+      const { id: clerk_id, email_addresses, first_name, last_name, image_url, username } = evt.data;
+      const email = email_addresses?.[0]?.email_address; // Get primary email
+      
+      // Prepare data for Supabase update
+      const userData = {
+        email: email, // Update email if available
+        username: username || undefined, // Leave unchanged if null
+        full_name: `${first_name || ''} ${last_name || ''}`.trim() || undefined, // Combine names
+        avatar_url: image_url || undefined, // Update avatar URL
+        updated_at: new Date().toISOString()
+      };
+      
+      // Remove undefined properties to avoid overwriting with null
+      Object.keys(userData).forEach(key => 
+        userData[key] === undefined && delete userData[key]
+      );
+      
+      try {
+        const { error } = await supabaseAdmin
+          .from('users')
+          .update(userData)
+          .eq('clerk_id', clerk_id);
+          
+        if (error) {
+          console.error('Error updating user in Supabase:', error);
+        } else {
+          console.log(`User ${clerk_id} updated successfully in Supabase.`);
+        }
+      } catch (err) {
+        console.error('Unexpected error updating user:', err);
+      }
   }
 
   if (eventType === 'user.deleted') {
       console.log("User deleted event received:", evt.data.id);
-      // Implement logic to potentially delete or deactivate the user in Supabase
-      // Note: Need to handle case where id might be null for deleted event
       const clerkIdToDelete = evt.data.id;
       if (clerkIdToDelete) {
-        // Example: Delete user
-         try {
-            const { error } = await supabaseAdmin
-               .from('users')
-               .delete()
-               .eq('clerk_id', clerkIdToDelete);
-            if (error) {
-               console.error('Error deleting user from Supabase:', error);
-               // Decide if this should be a 500 error back to Clerk
-            } else {
-               console.log(`User ${clerkIdToDelete} deleted from Supabase.`);
+        try {
+            // Önce kullanıcıya bağlı verileri temizleyelim
+            // Bu kısım sizin veri modelinize göre değişebilir
+            
+            // Yorumları silelim
+            const { error: commentsError } = await supabaseAdmin
+              .from('comments')
+              .delete()
+              .eq('user_id', clerkIdToDelete);
+              
+            if (commentsError) {
+              console.warn('Error deleting user comments:', commentsError);
             }
-         } catch(err) {
+            
+            // Gönderleri silelim
+            const { error: postsError } = await supabaseAdmin
+              .from('posts')
+              .delete()
+              .eq('user_id', clerkIdToDelete);
+              
+            if (postsError) {
+              console.warn('Error deleting user posts:', postsError);
+            }
+            
+            // Son olarak kullanıcıyı silelim
+            const { error } = await supabaseAdmin
+              .from('users')
+              .delete()
+              .eq('clerk_id', clerkIdToDelete);
+              
+            if (error) {
+              console.error('Error deleting user from Supabase:', error);
+            } else {
+              console.log(`User ${clerkIdToDelete} deleted from Supabase.`);
+            }
+        } catch(err) {
             console.error('Unexpected error deleting user:', err);
-         }
+        }
       }
   }
 

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
 import { useUser } from "@clerk/nextjs";
 import { PageLayout } from "@/components/layout/page-layout";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
@@ -15,11 +14,7 @@ import { ensureUuidFormat } from "@/lib/clerk-helpers";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
-
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import supabase from "@/lib/supabase-client";
 
 export default function PostPage() {
   const params = useParams();
