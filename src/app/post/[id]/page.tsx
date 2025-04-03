@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import supabase from "@/lib/supabase-client";
+import { useInView } from "react-intersection-observer";
 
 export default function PostPage() {
   const params = useParams();
@@ -31,6 +32,26 @@ export default function PostPage() {
   const [error, setError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isVideoPortrait, setIsVideoPortrait] = useState(false);
+  
+  // Video görünürlüğünü izlemek için intersection observer
+  const { ref: videoWrapperRef, inView } = useInView({
+    threshold: 0.5, // Videonun %50'si görünür olduğunda tetikle
+  });
+  
+  // Video görünür olduğunda ya da görünürlük durumu değiştiğinde
+  useEffect(() => {
+    if (videoRef.current) {
+      if (inView) {
+        // Video görünür olduğunda oynat
+        videoRef.current.play().catch(e => 
+          console.log("Video otomatik oynatılamadı:", e)
+        );
+      } else {
+        // Video görünür değilse durdur
+        videoRef.current.pause();
+      }
+    }
+  }, [inView]);
   
   // Fetch post and comments
   useEffect(() => {
@@ -230,20 +251,6 @@ export default function PostPage() {
     setIsVideoPortrait(video.videoHeight > video.videoWidth);
   };
   
-  // Mouse üzerine gelince otomatik oynatma
-  const handleVideoMouseEnter = () => {
-    if (videoRef.current) {
-      videoRef.current.play().catch(e => console.log("Video otomatik oynatılamadı:", e));
-    }
-  };
-  
-  // Mouse ayrılınca durdurma
-  const handleVideoMouseLeave = () => {
-    if (videoRef.current) {
-      videoRef.current.pause();
-    }
-  };
-  
   if (error) {
     return (
       <PageLayout>
@@ -313,15 +320,16 @@ export default function PostPage() {
                     {post.image_url && (
                       <div className="mt-3 rounded-md overflow-hidden">
                         {post.image_url.includes('.mp4') || post.image_url.includes('/video/') ? (
-                          <div className={`flex justify-center ${isVideoPortrait ? 'max-w-[70%] mx-auto' : 'w-full'}`}>
+                          <div 
+                            ref={videoWrapperRef} 
+                            className={`flex justify-center ${isVideoPortrait ? 'max-w-[70%] mx-auto' : 'w-full'}`}
+                          >
                             <video 
                               ref={videoRef}
                               src={post.image_url}
                               controls
                               preload="metadata"
                               onLoadedMetadata={handleVideoLoad}
-                              onMouseEnter={handleVideoMouseEnter}
-                              onMouseLeave={handleVideoMouseLeave}
                               className={`${isVideoPortrait ? 'h-auto max-h-[70vh] w-auto' : 'w-full h-auto max-h-[70vh]'} object-contain`}
                               playsInline
                               muted
@@ -332,7 +340,7 @@ export default function PostPage() {
                           <img
                             src={post.image_url}
                             alt="Post image"
-                            className="w-full h-auto max-h-[500px] object-cover"
+                            className="w-full h-auto max-h-[500px] object-contain"
                           />
                         )}
                       </div>

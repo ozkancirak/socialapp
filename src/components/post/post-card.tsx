@@ -20,6 +20,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import supabase from "@/lib/supabase-client";
+import { useInView } from "react-intersection-observer";
 
 // Initialize Supabase client
 // const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
@@ -85,6 +86,33 @@ export function PostCard({
   const commentInputRef = useRef<HTMLTextAreaElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isVideoPortrait, setIsVideoPortrait] = useState(false);
+  
+  // Video görünürlüğünü izlemek için intersection observer kullanıyoruz
+  const { ref: videoWrapperRef, inView } = useInView({
+    threshold: 0.5, // Videonun %50'si görünür olduğunda tetikle
+  });
+  
+  // Video görünür olduğunda ya da görünürlük durumu değiştiğinde
+  useEffect(() => {
+    if (videoRef.current) {
+      if (inView) {
+        // Video görünür olduğunda oynat
+        videoRef.current.play().catch(e => 
+          console.log("Video otomatik oynatılamadı:", e)
+        );
+      } else {
+        // Video görünür değilse durdur
+        videoRef.current.pause();
+      }
+    }
+  }, [inView]);
+  
+  // Video yüklendiğinde en-boy oranını kontrol edelim
+  const handleVideoLoad = (event: React.SyntheticEvent<HTMLVideoElement>) => {
+    const video = event.currentTarget;
+    // Video yüklendikten sonra boyutlarını kontrol edelim
+    setIsVideoPortrait(video.videoHeight > video.videoWidth);
+  };
 
   // Sadece render aşamasında değil, işlem sırasında da kullanıcı kimliğini doğrulamamız gerekiyor
   console.dir({
@@ -719,27 +747,6 @@ export function PostCard({
     }
   };
 
-  // Video yüklendiğinde en-boy oranını kontrol edelim
-  const handleVideoLoad = (event: React.SyntheticEvent<HTMLVideoElement>) => {
-    const video = event.currentTarget;
-    // Video yüklendikten sonra boyutlarını kontrol edelim
-    setIsVideoPortrait(video.videoHeight > video.videoWidth);
-  };
-  
-  // Mouse üzerine gelince otomatik oynatma
-  const handleVideoMouseEnter = () => {
-    if (videoRef.current) {
-      videoRef.current.play().catch(e => console.log("Video otomatik oynatılamadı:", e));
-    }
-  };
-  
-  // Mouse ayrılınca durdurma
-  const handleVideoMouseLeave = () => {
-    if (videoRef.current) {
-      videoRef.current.pause();
-    }
-  };
-
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-3 pt-1 pb-0">
@@ -796,15 +803,16 @@ export function PostCard({
             {image_url && (
               <div className="mt-3 rounded-md overflow-hidden">
                 {image_url.includes('.mp4') || image_url.includes('/video/') ? (
-                  <div className={`flex justify-center ${isVideoPortrait ? 'max-w-[70%] mx-auto' : 'w-full'}`}>
+                  <div 
+                    ref={videoWrapperRef} 
+                    className={`flex justify-center ${isVideoPortrait ? 'max-w-[70%] mx-auto' : 'w-full'}`}
+                  >
                     <video 
                       ref={videoRef}
                       src={image_url}
                       controls
                       preload="metadata"
                       onLoadedMetadata={handleVideoLoad}
-                      onMouseEnter={handleVideoMouseEnter}
-                      onMouseLeave={handleVideoMouseLeave}
                       className={`${isVideoPortrait ? 'h-auto max-h-[500px] w-auto' : 'w-full h-auto max-h-96'} object-contain`}
                       playsInline
                       muted
@@ -815,7 +823,7 @@ export function PostCard({
                   <img
                     src={image_url} 
                     alt="Post image"
-                    className="w-full h-auto max-h-96 object-cover"
+                    className="w-full h-auto max-h-96 object-contain"
                   />
                 )}
               </div>
