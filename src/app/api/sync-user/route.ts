@@ -30,6 +30,15 @@ export async function GET(request: NextRequest) {
       .eq('clerk_id', formattedClerkId)
       .maybeSingle();
       
+    if (checkError) {
+      console.error("Error checking for existing user:", checkError);
+      return NextResponse.json({
+        success: false,
+        message: "Failed to check for existing user",
+        error: checkError
+      }, { status: 500 });
+    }
+      
     if (existingUser) {
       return NextResponse.json({
         success: true,
@@ -40,6 +49,8 @@ export async function GET(request: NextRequest) {
     
     // Create a deterministic UUID from the Clerk ID
     const supabaseUuid = createDeterministicUuid(userId);
+    
+    console.log(`Creating user with ID ${supabaseUuid} and Clerk ID ${formattedClerkId}`);
     
     // Create the user in Supabase
     const { data, error } = await supabase
@@ -56,9 +67,19 @@ export async function GET(request: NextRequest) {
       
     if (error) {
       console.error("Error creating user:", error);
+      
+      // Check why the insert failed
+      let details = '';
+      
+      if (error.code === '23505') { // Unique violation
+        details = "User with this ID or clerk_id already exists";
+      } else if (error.code === '23502') { // Not null violation
+        details = "Missing required field";
+      }
+      
       return NextResponse.json({
         success: false,
-        message: "Failed to create user in Supabase",
+        message: `Failed to create user in Supabase: ${details || error.message}`,
         error
       }, { status: 500 });
     }
@@ -69,12 +90,16 @@ export async function GET(request: NextRequest) {
       data
     });
     
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error syncing user:", error);
     return NextResponse.json({
       success: false,
-      message: "An unexpected error occurred",
-      error
+      message: "An unexpected error occurred", 
+      error: {
+        name: error.name,
+        message: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      }
     }, { status: 500 });
   }
 } 
