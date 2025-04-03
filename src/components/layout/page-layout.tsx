@@ -64,6 +64,52 @@ export function PageLayout({ children }: PageLayoutProps) {
     };
   }, []);
   
+  // Sayfa görünürlüğünü izleyen efekt
+  useEffect(() => {
+    // Tarayıcı sekmesi arka plana alındığında veya ön plana geldiğinde çalışacak işleyici
+    const handleVisibilityChange = () => {
+      const videos = document.querySelectorAll('video');
+      
+      if (document.hidden) {
+        // Sayfa görünmez olduğunda tüm videoları durdur
+        videos.forEach(video => {
+          if (!video.paused) {
+            video.pause();
+            // Tekrar görünür olunca otomatik başlamak için işaretleyelim
+            video.setAttribute('data-was-playing', 'true');
+          }
+        });
+      } else {
+        // Sayfa tekrar görünür olduğunda daha önce oynatılanları başlat
+        videos.forEach(video => {
+          if (video.hasAttribute('data-was-playing')) {
+            // IntersectionObserver'ın işini bozmayalım, sadece görünür olanları başlatalım
+            const rect = video.getBoundingClientRect();
+            const isVisible = 
+              rect.top >= 0 &&
+              rect.bottom <= (window.innerHeight || document.documentElement.clientHeight);
+            
+            if (isVisible) {
+              video.play().catch(() => {
+                console.log("Video otomatik oynatılamadı");
+              });
+            }
+            
+            video.removeAttribute('data-was-playing');
+          }
+        });
+      }
+    };
+    
+    // Event listener'ı ekle
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Cleanup
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+  
   return (
     <>
       <SignedIn>
