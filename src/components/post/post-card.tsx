@@ -771,14 +771,22 @@ export function PostCard({
             </div>
             <p className="mt-1.5">{content}</p>
             {image_url && (
-          <div className="mt-3 rounded-md overflow-hidden">
-            <img
-                  src={image_url} 
-              alt="Post image"
-                  className="w-full h-auto max-h-96 object-cover"
-            />
-          </div>
-        )}
+              <div className="mt-3 rounded-md overflow-hidden">
+                {image_url.includes('.mp4') || image_url.includes('/video/') ? (
+                  <video 
+                    src={image_url}
+                    controls
+                    className="w-full h-auto max-h-96 object-contain"
+                  />
+                ) : (
+                  <img
+                    src={image_url} 
+                    alt="Post image"
+                    className="w-full h-auto max-h-96 object-cover"
+                  />
+                )}
+              </div>
+            )}
           </div>
         </div>
       </CardContent>

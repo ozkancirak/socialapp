@@ -263,19 +263,51 @@ export default function PostPage() {
         {/* Post */}
         {post && (
           <div className="mb-6">
-            <PostCard
-              id={post.id}
-              content={post.content}
-              image_url={post.image_url}
-              created_at={post.created_at}
-              user_id={post.user_id}
-              users={post.users}
-              likes_count={post.likes_count}
-              comments_count={post.comments_count}
-              is_liked={post.is_liked}
-              onLikeChange={handleLikeChange}
-              onPostDelete={handlePostDelete}
-            />
+            <Card className="overflow-hidden">
+              <CardContent className="p-3 pt-1 pb-3">
+                <div className="flex items-start gap-2">
+                  <Link href={`/profile/${post.users?.username}`}>
+                    <Avatar className="h-9 w-9">
+                      <AvatarImage src={post.users?.avatar_url} alt={post.users?.username} />
+                      <AvatarFallback>{post.users?.username?.[0]?.toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                  </Link>
+                  <div className="flex-1">
+                    <div className="flex justify-between">
+                      <div>
+                        <Link href={`/profile/${post.users?.username}`} className="font-semibold hover:underline">
+                          {post.users?.full_name || post.users?.username}
+                        </Link>
+                        <p className="text-xs text-muted-foreground -mt-0.5">@{post.users?.username}</p>
+                      </div>
+                      <span className="text-sm text-muted-foreground">
+                        {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
+                      </span>
+                    </div>
+                    <p className="mt-2">{post.content}</p>
+                    
+                    {/* Add video support */}
+                    {post.image_url && (
+                      <div className="mt-3 rounded-md overflow-hidden">
+                        {post.image_url.includes('.mp4') || post.image_url.includes('/video/') ? (
+                          <video 
+                            src={post.image_url}
+                            controls
+                            className="w-full h-auto max-h-[500px] object-contain"
+                          />
+                        ) : (
+                          <img
+                            src={post.image_url}
+                            alt="Post image"
+                            className="w-full h-auto max-h-[500px] object-cover"
+                          />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )}
         

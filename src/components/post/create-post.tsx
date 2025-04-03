@@ -32,7 +32,7 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
       setImageFile(file);
       const isVideoFile = file.type.startsWith('video/');
       setIsVideo(isVideoFile);
-      
+
       if (isVideoFile) {
         // For videos, create an object URL for preview
         const videoUrl = URL.createObjectURL(file);
@@ -63,40 +63,40 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!user) return;
-    
+
     if (!content.trim() && !imageFile) {
       toast.error("Please add content or media to your post");
       return;
     }
-    
+
     try {
       setIsSubmitting(true);
-      
+
       let mediaUrl = null;
-      
+
       // First, ensure user exists in the database
       try {
         // Convert Clerk ID to UUID format for consistency
         const formattedUserId = await ensureUuidFormat(user.id);
-        
+
         // Use simple username without adding unique suffix
         const username = user.username || 'user';
         const avatarUrl = user.imageUrl;
-        
+
         console.log("Using user ID:", formattedUserId);
-        
+
         // Check if user exists
         const { data: existingUser } = await supabase
           .from('users')
           .select('id')
           .eq('id', formattedUserId)
           .single();
-        
+
         if (!existingUser) {
           console.log("User doesn't exist, creating new user");
-          
+
           // Create user with minimal fields
           const { error: userError } = await supabase
             .from('users')
@@ -105,12 +105,12 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
               username,
               avatar_url: avatarUrl
             });
-          
+
           if (userError) {
             console.error("Failed to create user:", userError.message);
             throw userError;
           }
-          
+
           console.log("User created successfully");
         } else {
           console.log("User already exists");
@@ -119,7 +119,7 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
         // Continue anyway - we'll use the test UUID
         console.log("Using test UUID for post");
       }
-      
+
       // Try to upload media if provided
       if (imageFile) {
         mediaUrl = await uploadToCloudinary(imageFile);
@@ -127,15 +127,15 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
           toast.error("Media upload failed");
         }
       }
-      
+
       // Create the post
       try {
         // Skip user sync and go straight to post creation
         console.log("Creating post with content:", content.substring(0, 30));
-        
+
         // Convert Clerk ID to UUID format
         const formattedUserId = await ensureUuidFormat(user.id);
-        
+
         const { error } = await supabase
           .from("posts")
           .insert({
@@ -143,26 +143,26 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
             content: content.trim(),
             image_url: mediaUrl,
           });
-        
+
         if (error) {
           console.error("Post creation failed:", error.message);
           toast.error(`Failed to create post: ${error.message}`);
           return;
         }
-        
+
         // Clear form on success
         setContent("");
         setImageFile(null);
         setImagePreview(null);
         setIsVideo(false);
-        
+
         // Revoke URL if needed
         if (isVideo && imagePreview) {
           URL.revokeObjectURL(imagePreview);
         }
-        
+
         toast.success("Post created successfully");
-        
+
         // Notify parent component
         if (onPostCreated) {
           onPostCreated();
@@ -197,15 +197,15 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
               {imagePreview && (
                 <div className="relative mt-3 rounded-md overflow-hidden">
                   {isVideo ? (
-                    <video 
-                      src={imagePreview} 
+                    <video
+                      src={imagePreview}
                       controls
                       className="w-full h-auto max-h-80 object-contain"
                     />
                   ) : (
-                    <img 
-                      src={imagePreview} 
-                      alt="Preview" 
+                    <img
+                      src={imagePreview}
+                      alt="Preview"
                       className="w-full h-auto max-h-80 object-cover"
                     />
                   )}
@@ -243,8 +243,8 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
               Add Media
             </Button>
           </div>
-          <Button 
-            type="submit" 
+          <Button
+            type="submit"
             size="sm"
             disabled={isSubmitting || (!content.trim() && !imageFile)}
           >

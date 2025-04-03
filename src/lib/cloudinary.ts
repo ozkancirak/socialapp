@@ -61,7 +61,6 @@ export async function uploadToCloudinaryServer(filePath: string, isVideo: boolea
     const options = {
       resource_type: isVideo ? 'video' : 'image',
       transformation: [
-        {width: 1000, crop: "scale"},
         {quality: "auto"},
         {fetch_format: "auto"}
       ]
