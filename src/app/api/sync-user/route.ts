@@ -1,7 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs';
-import { createDeterministicUuid } from '@/lib/clerk-helpers';
 
 // Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
@@ -32,14 +31,14 @@ export async function GET(request: NextRequest) {
     
     const userId = user.id;
     
-    // Format the clerk ID for DB storage (remove 'user_' prefix)
+    // Format the clerk ID for DB storage (remove 'user_' prefix if needed)
     const formattedClerkId = userId.startsWith('user_') ? userId.substring(5) : userId;
     
     // First, check if the user already exists in Supabase
     const { data: existingUser, error: checkError } = await supabase
       .from('users')
       .select('id')
-      .eq('clerk_id', formattedClerkId)
+      .eq('id', formattedClerkId) // Changed to use clerk_id as primary key
       .maybeSingle();
       
     if (checkError) {
@@ -59,8 +58,8 @@ export async function GET(request: NextRequest) {
       });
     }
     
-    // Create a deterministic UUID from the Clerk ID
-    const supabaseUuid = createDeterministicUuid(userId);
+    // Use Clerk ID directly as the Supabase ID
+    const supabaseId = formattedClerkId;
     
     // Prepare username - use Clerk username or generate one
     const username = user.username || 
@@ -74,15 +73,14 @@ export async function GET(request: NextRequest) {
     // Get avatar
     const avatarUrl = user.imageUrl;
     
-    console.log(`Creating user with ID ${supabaseUuid} and Clerk ID ${formattedClerkId}`);
+    console.log(`Creating user with ID ${supabaseId}`);
     
     // Create the user in Supabase
     const { data, error } = await supabase
       .from('users')
       .insert([
         { 
-          id: supabaseUuid,
-          clerk_id: formattedClerkId,
+          id: supabaseId, // Using Clerk ID directly as Supabase ID
           username: username,
           full_name: fullName,
           avatar_url: avatarUrl,
@@ -103,7 +101,7 @@ export async function GET(request: NextRequest) {
           const { data: existingUser } = await supabase
             .from('users')
             .select('id')
-            .eq('clerk_id', formattedClerkId)
+            .eq('id', supabaseId)
             .single();
             
           if (existingUser) {
@@ -117,7 +115,7 @@ export async function GET(request: NextRequest) {
           console.error("Failed to fetch user after conflict:", e);
         }
         
-        details = "User with this ID or clerk_id already exists";
+        details = "User with this ID already exists";
       } else if (error.code === '23502') { // Not null violation
         details = "Missing required field";
       }

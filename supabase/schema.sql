@@ -1,9 +1,8 @@
 -- Main schema file for social app
 
--- Create Users Table with simple structure
+-- Create Users Table with text ID to directly use Clerk IDs
 CREATE TABLE IF NOT EXISTS public.users (
-  id UUID PRIMARY KEY,
-  clerk_id TEXT UNIQUE,
+  id TEXT PRIMARY KEY, -- Changed to TEXT to use Clerk ID directly
   username TEXT NOT NULL,
   full_name TEXT,
   avatar_url TEXT,
@@ -13,7 +12,7 @@ CREATE TABLE IF NOT EXISTS public.users (
 -- Create Posts Table with simple structure
 CREATE TABLE IF NOT EXISTS public.posts (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
+  user_id TEXT REFERENCES public.users(id) ON DELETE CASCADE, -- Changed to TEXT
   content TEXT NOT NULL,
   image_url TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
@@ -22,7 +21,7 @@ CREATE TABLE IF NOT EXISTS public.posts (
 -- Create Likes Table
 CREATE TABLE IF NOT EXISTS public.likes (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
+  user_id TEXT REFERENCES public.users(id) ON DELETE CASCADE, -- Changed to TEXT
   post_id UUID REFERENCES public.posts(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(user_id, post_id)
@@ -31,7 +30,7 @@ CREATE TABLE IF NOT EXISTS public.likes (
 -- Create Comments Table
 CREATE TABLE IF NOT EXISTS public.comments (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
+  user_id TEXT REFERENCES public.users(id) ON DELETE CASCADE, -- Changed to TEXT
   post_id UUID REFERENCES public.posts(id) ON DELETE CASCADE,
   content TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
@@ -40,11 +39,27 @@ CREATE TABLE IF NOT EXISTS public.comments (
 -- Create Comment Likes Table
 CREATE TABLE IF NOT EXISTS public.comment_likes (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
+  user_id TEXT REFERENCES public.users(id) ON DELETE CASCADE, -- Changed to TEXT
   comment_id UUID REFERENCES public.comments(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(user_id, comment_id)
 );
+
+-- Trigger to format clerk IDs (remove 'user_' prefix if present)
+CREATE OR REPLACE FUNCTION format_clerk_id() RETURNS TRIGGER AS $$
+BEGIN
+  -- Remove user_ prefix if present
+  IF NEW.id LIKE 'user_%' THEN
+    NEW.id := substring(NEW.id from 6);
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER format_clerk_id_trigger
+BEFORE INSERT ON public.users
+FOR EACH ROW
+EXECUTE FUNCTION format_clerk_id();
 
 -- Enable Row Level Security
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
